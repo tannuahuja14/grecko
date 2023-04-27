@@ -1,45 +1,43 @@
 pipeline {
-  agent any
-  
-  environment {
-    DOCKER_REGISTRY = 'my-docker-app'
-    DOCKER_IMAGE_NAME = 'my-app'
-    KUBECONFIG = credentials('your-kubeconfig-credentials-id')
-  }
+    agent any
 
-  stages {
-    stage('Build') {
-      steps {
-        sh 'echo "Building HTML/CSS project..."'
-        sh 'mkdir -p build'
-        sh 'cp -r src/* build'
-      }
+    environment {
+        DOCKER_REGISTRY = "my-docker-app"
+        DOCKER_IMAGE_NAME = "my-app"
+        KUBECONFIG = credentials('your-kubeconfig-credentials-id')
     }
 
-    stage('Test') {
-      steps {
-        sh 'echo "Running tests..."'
-        sh 'echo "No tests found."'
-      }
-    }
-
-    stage('Package') {
-      steps {
-        sh 'echo "Packaging application..."'
-        sh 'docker build -t my-docker-repo/my-app:$GIT_COMMIT .'
-        sh 'docker push my-docker-repo/my-app:$GIT_COMMIT'
-
-      }
-    }
-
-    stage('Deploy') {
-      steps {
-        sh 'echo "Deploying to Kubernetes..."'
-        withCredentials([kubeconfigFile(credentialsId: 'your-kubeconfig-credentials-id', variable: 'KUBECONFIG')]) {
-          sh 'kubectl config use-context minikube'
-          sh 'kubectl set image deployment/my-app-deployment my-app=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$GIT_COMMIT'
+    stages {
+        stage('Build/Test') {
+            steps {
+                sh 'echo "Build and test the application"'
+            }
         }
-      }
+
+        stage('Generate Artifacts') {
+            steps {
+                sh 'echo "Generate artifacts"'
+            }
+        }
+
+        stage('Dockerize') {
+            steps {
+                sh 'docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$GIT_COMMIT .'
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                sh 'docker push $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$GIT_COMMIT'
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh 'kubectl config use-context minikube'
+                sh 'kubectl apply -f kubernetes/deployment.yaml'
+                sh 'kubectl rollout status deployment/my-app'
+            }
+        }
     }
-  }
 }
